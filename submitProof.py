@@ -25,7 +25,7 @@ def merkle_assignment():
     tree = build_merkle(leaves)
 
     # Select a random leaf and create a proof for that leaf
-    random_leaf_index = random.randint(0, len(leaves) - 1)  # replace 0 with random
+    random_leaf_index = random.randint(0, len(leaves) - 1)
     proof = prove_merkle(tree, random_leaf_index)
 
     # This is the same way the grader generates a challenge for sign_challenge()
@@ -102,7 +102,6 @@ def prove_merkle(merkle_tree, random_indx):
     return merkle_proof
 
 
-
 def sign_challenge(challenge):
     """
         Takes a challenge (string)
@@ -119,7 +118,7 @@ def sign_challenge(challenge):
     eth_encoded_msg = eth_account.messages.encode_defunct(text=challenge)
     eth_sig_obj = eth_account.Account.sign_message(eth_encoded_msg, private_key=eth_sk)
 
-    return addr, eth_sig_obj.signature.hex()
+    return addr, eth_sig_obj.signature
 
 
 def send_signed_msg(proof, random_leaf):
