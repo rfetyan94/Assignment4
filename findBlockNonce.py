@@ -3,6 +3,11 @@ import hashlib
 import os
 import random
 
+#!/bin/python
+import hashlib
+import os
+import random
+
 
 def mine_block(k, prev_hash, transactions):
     """
@@ -18,7 +23,19 @@ def mine_block(k, prev_hash, transactions):
         print("mine_block expects positive integer")
         return b'\x00'
 
-    # TODO your code to find a nonce here
+    target_suffix = '0' * k
+    base = prev_hash + ''.join(transactions).encode()
+
+    nonce = None
+    while True:
+        attempt = random.getrandbits(64).to_bytes(8, 'big')
+        hasher = hashlib.sha256()
+        hasher.update(base + attempt)
+        digest = hasher.digest()
+        bin_digest = bin(int.from_bytes(digest, 'big'))[2:].zfill(256)
+        if bin_digest[-k:] == target_suffix:
+            nonce = attempt
+            break
 
     assert isinstance(nonce, bytes), 'nonce should be of type bytes'
     return nonce
@@ -52,5 +69,6 @@ if __name__ == '__main__':
     diff = 20
 
     transactions = get_random_lines(filename, num_lines)
-    nonce = mine_block(diff, transactions)
-    print(nonce)
+    prev_hash = hashlib.sha256(b'genesis').digest()
+    nonce = mine_block(diff, prev_hash, transactions)
+    print("Valid nonce:", nonce.hex())
