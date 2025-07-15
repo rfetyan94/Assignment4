@@ -6,8 +6,8 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./BridgeToken.sol";
 
 contract Destination is AccessControl {
-bytes32 public constant WARDEN\_ROLE = keccak256("BRIDGE\_WARDEN\_ROLE");
-bytes32 public constant CREATOR\_ROLE = keccak256("CREATOR\_ROLE");
+bytes32 public constant WARDEN_ROLE = keccak256("BRIDGE_WARDEN_ROLE");
+bytes32 public constant CREATOR_ROLE = keccak256("CREATOR_ROLE");
 
 
 mapping(address => address) public underlying_tokens;
