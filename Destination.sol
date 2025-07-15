@@ -1,85 +1,57 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.17;
 
-interface ISourceBridge {
-function owner() external view returns (address);
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "./BridgeToken.sol";
+
+contract Destination is AccessControl {
+bytes32 public constant WARDEN\_ROLE = keccak256("BRIDGE\_WARDEN\_ROLE");
+bytes32 public constant CREATOR\_ROLE = keccak256("CREATOR\_ROLE");
+
+mapping(address => address) public underlying_tokens;
+mapping(address => address) public wrapped_tokens;
+address[] public tokens;
+
+event Creation(address indexed underlying_token, address indexed wrapped_token);
+event Wrap(address indexed underlying_token, address indexed wrapped_token, address indexed to, uint256 amount);
+event Unwrap(address indexed underlying_token, address indexed wrapped_token, address frm, address indexed to, uint256 amount);
+
+constructor(address admin) {
+    _grantRole(DEFAULT_ADMIN_ROLE, admin);
+    _grantRole(CREATOR_ROLE, admin);
+    _grantRole(WARDEN_ROLE, admin);
 }
 
-contract DestinationContract {
-address public admin;
-address public sourceBridgeAddress;
+function wrap(address _underlying_token, address _recipient, uint256 _amount) public onlyRole(WARDEN_ROLE) {
+    address wrapped = wrapped_tokens[_underlying_token];
+    require(wrapped != address(0), "Token not registered");
 
-```
-uint256 public nextTokenId = 0;
-
-// Inventory pool of available tokens
-uint256[] public availableTokens;
-
-// Mapping of tokenId => owner (if wrapped)
-mapping(uint256 => address) public wrappedTokens;
-
-event TokenCreated(uint256 tokenId);
-event TokenWrapped(uint256 tokenId, address recipient);
-event TokenUnwrapped(uint256 tokenId, address owner);
-
-constructor(address _sourceBridgeAddress) {
-    admin = msg.sender;
-    sourceBridgeAddress = _sourceBridgeAddress;
+    BridgeToken(wrapped).mint(_recipient, _amount);
+    emit Wrap(_underlying_token, wrapped, _recipient, _amount);
 }
 
-modifier onlyAdmin() {
-    require(msg.sender == admin, "Not admin");
-    _;
+function unwrap(address _wrapped_token, address _recipient, uint256 _amount) public {
+    address underlying = underlying_tokens[_wrapped_token];
+    require(underlying != address(0), "Wrapped token not recognized");
+
+    BridgeToken(_wrapped_token).burnFrom(msg.sender, _amount);
+    emit Unwrap(underlying, _wrapped_token, msg.sender, _recipient, _amount);
 }
 
-modifier onlySourceBridgeOwner() {
-    address sourceOwner = ISourceBridge(sourceBridgeAddress).owner();
-    require(
-        msg.sender == sourceOwner,
-        "Unauthorized: Not source bridge owner"
-    );
-    _;
+function createToken(address _underlying_token, string memory name, string memory symbol) public onlyRole(CREATOR_ROLE) returns (address) {
+    require(wrapped_tokens[_underlying_token] == address(0), "Token already created");
+
+    BridgeToken newToken = new BridgeToken(_underlying_token, name, symbol, address(this));
+
+    address wrappedAddress = address(newToken);
+    wrapped_tokens[_underlying_token] = wrappedAddress;
+    underlying_tokens[wrappedAddress] = _underlying_token;
+    tokens.push(wrappedAddress);
+
+    emit Creation(_underlying_token, wrappedAddress);
+    return wrappedAddress;
 }
 
-// --- 1. Create Tokens ---
-function createTokens(uint256 amount) public onlyAdmin {
-    for (uint256 i = 0; i < amount; i++) {
-        availableTokens.push(nextTokenId);
-        emit TokenCreated(nextTokenId);
-        nextTokenId++;
-    }
-}
-
-// --- 2. Wrap Tokens ---
-function wrapToken(address recipient) public onlySourceBridgeOwner {
-    require(availableTokens.length > 0, "No tokens available");
-    uint256 tokenId = availableTokens[availableTokens.length - 1];
-    availableTokens.pop();
-
-    wrappedTokens[tokenId] = recipient;
-
-    emit TokenWrapped(tokenId, recipient);
-}
-
-// --- 3. Unwrap Tokens ---
-function unwrapToken(uint256 tokenId) public {
-    require(wrappedTokens[tokenId] == msg.sender, "Not token owner");
-
-    delete wrappedTokens[tokenId];
-    availableTokens.push(tokenId);
-
-    emit TokenUnwrapped(tokenId, msg.sender);
-}
-
-// --- Admin: Update bridge address ---
-function updateSourceBridge(address _newSourceBridgeAddress) public onlyAdmin {
-    sourceBridgeAddress = _newSourceBridgeAddress;
-}
-
-// --- Helper ---
-function getAvailableTokenCount() public view returns (uint256) {
-    return availableTokens.length;
-}
-```
 
 }
