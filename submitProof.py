@@ -115,10 +115,10 @@ def sign_challenge(challenge):
     addr = acct.address
     eth_sk = acct.key
 
-    eth_encoded_msg = eth_account.messages.encode_defunct(text=challenge)
-    eth_sig_obj = eth_account.Account.sign_message(eth_encoded_msg, private_key=eth_sk)
+    encoded_msg = eth_account.messages.encode_defunct(text=challenge)
 
-    print(f"DEBUG: addr={addr}, sig={eth_sig_obj.signature.hex()}")
+    eth_sig_obj = eth_account.Account.sign_message(encoded_msg, eth_sk)
+
     return addr, eth_sig_obj.signature.hex()
 
 
