@@ -204,9 +204,7 @@ def sign_challenge_verify(challenge, addr, sig):
         return True
     else:
         print(f"Failure: The signature does not verify!")
-        print(f"signature = {sig}
-address = {addr}
-challenge = {challenge}")
+        print(f"signature = {sig}\naddress = {addr}\nchallenge = {challenge}")
         return False
 
 def hash_pair(a, b):
