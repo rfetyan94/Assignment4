@@ -26,7 +26,6 @@ def merkle_assignment():
 
     # Select a random leaf and create a proof for that leaf
     random_leaf_index = random.randint(1, num_of_primes - 1)
-
     proof = prove_merkle(tree, random_leaf_index)
 
     # This is the same way the grader generates a challenge for sign_challenge()
@@ -63,7 +62,14 @@ def convert_leaves(primes_list):
         Converts the leaves (primes_list) to bytes32 format
         returns list of primes where list entries are bytes32 encodings of primes_list entries
     """
-    return [p.to_bytes(32, byteorder='big') for p in primes_list]
+     leaves = [] 
+
+    for prime in primes_list:
+
+        prime_bytes = int.to_bytes(prime, 32, 'big')
+        leaves.append(prime_bytes)
+
+    return leaves
 
 
 def build_merkle(leaves):
