@@ -25,7 +25,7 @@ def merkle_assignment():
     tree = build_merkle(leaves)
 
     # Select a random leaf and create a proof for that leaf
-    random_leaf_index = random.randint(1, num_of_primes - 1)
+    random_leaf_index = random.randint(0, len(leaves) - 1)
     proof = prove_merkle(tree, random_leaf_index)
 
     # This is the same way the grader generates a challenge for sign_challenge()
@@ -115,10 +115,10 @@ def sign_challenge(challenge):
     addr = acct.address
     eth_sk = acct.key
 
-    encoded_msg = eth_account.messages.encode_defunct(text=challenge)
+    eth_encoded_msg = eth_account.messages.encode_defunct(text=challenge)
+    eth_sig_obj = eth_account.Account.sign_message(eth_encoded_msg, private_key=eth_sk)
 
-    eth_sig_obj = eth_account.Account.sign_message(encoded_msg, eth_sk)
-
+    print(f"DEBUG: addr={addr}, sig={eth_sig_obj.signature.hex()}")
     return addr, eth_sig_obj.signature.hex()
 
 
@@ -137,17 +137,19 @@ def send_signed_msg(proof, random_leaf):
     # TODO YOUR CODE HERE
     contract = w3.eth.contract(address=address, abi=abi)
 
-    tx = contract.functions.claimPrime(random_leaf, proof).build_transaction({
+    tx = contract.functions.submit(proof, random_leaf).build_transaction({
         'from': acct.address,
         'nonce': w3.eth.get_transaction_count(acct.address),
         'gas': 500000,
-        'gasPrice': w3.eth.gas_price
+        'gasPrice': w3.to_wei('10', 'gwei')
     })
 
     signed_tx = w3.eth.account.sign_transaction(tx, private_key=acct.key)
+
     tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
 
-    return w3.to_hex(tx_hash)
+    return tx_hash
+
 
 # Helper functions that do not need to be modified
 def connect_to(chain):
@@ -163,11 +165,8 @@ def connect_to(chain):
     else:
         api_url = f"https://data-seed-prebsc-1-s1.binance.org:8545/"  # BSC testnet
     w3 = Web3(Web3.HTTPProvider(api_url))
-    # inject the poa compatibility middleware to the innermost layer
     w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
-
     return w3
-
 
 def get_account():
     """
@@ -180,7 +179,6 @@ def get_account():
     if sk[0:2] == "0x":
         sk = sk[2:]
     return eth_account.Account.from_key(sk)
-
 
 def get_contract_info(chain):
     """
@@ -195,22 +193,21 @@ def get_contract_info(chain):
         d = d[chain]
     return d['address'], d['abi']
 
-
 def sign_challenge_verify(challenge, addr, sig):
     """
         Helper to verify signatures, verifies sign_challenge(challenge)
         the same way the grader will. No changes are needed for this method
     """
     eth_encoded_msg = eth_account.messages.encode_defunct(text=challenge)
-
-    if eth_account.Account.recover_message(eth_encoded_msg, signature=sig) == addr:
+    if eth_account.Account.recover_message(eth_encoded_msg, signature=bytes.fromhex(sig)) == addr:
         print(f"Success: signed the challenge {challenge} using address {addr}!")
         return True
     else:
         print(f"Failure: The signature does not verify!")
-        print(f"signature = {sig}\naddress = {addr}\nchallenge = {challenge}")
+        print(f"signature = {sig}
+address = {addr}
+challenge = {challenge}")
         return False
-
 
 def hash_pair(a, b):
     """
