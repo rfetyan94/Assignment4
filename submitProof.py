@@ -97,10 +97,10 @@ def prove_merkle(merkle_tree, random_indx):
         sibling_index = index ^ 1
         if sibling_index < len(level):
             sibling_hash = level[sibling_index]
-            direction = 'L' if sibling_index < index else 'R'
-            merkle_proof.append((sibling_hash, direction))
+            merkle_proof.append(sibling_hash)
         index //= 2
     return merkle_proof
+
 
 
 def sign_challenge(challenge):
