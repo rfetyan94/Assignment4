@@ -33,8 +33,9 @@ modifier onlyAdmin() {
 }
 
 modifier onlySourceBridgeOwner() {
+    address sourceOwner = ISourceBridge(sourceBridgeAddress).owner();
     require(
-        msg.sender == ISourceBridge(sourceBridgeAddress).owner(),
+        msg.sender == sourceOwner,
         "Unauthorized: Not source bridge owner"
     );
     _;
