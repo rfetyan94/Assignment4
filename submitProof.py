@@ -134,7 +134,6 @@ def send_signed_msg(proof, random_leaf):
     address, abi = get_contract_info(chain)
     w3 = connect_to(chain)
 
-    # TODO YOUR CODE HERE
     contract = w3.eth.contract(address=address, abi=abi)
 
     tx = contract.functions.submit(proof, random_leaf).build_transaction({
