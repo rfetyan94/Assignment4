@@ -25,7 +25,7 @@ def merkle_assignment():
     tree = build_merkle(leaves)
 
     # Select a random leaf and create a proof for that leaf
-    random_leaf_index = 0 #TODO generate a random index from primes to claim (0 is already claimed)
+    random_leaf_index = random.randint(0, len(leaves) - 1)  # replace 0 with random
     proof = prove_merkle(tree, random_leaf_index)
 
     # This is the same way the grader generates a challenge for sign_challenge()
@@ -46,9 +46,14 @@ def generate_primes(num_primes):
         returns list (with length n) of primes (as ints) in ascending order
     """
     primes_list = []
-
-    #TODO YOUR CODE HERE
-
+    candidate = 2
+    while len(primes_list) < num_primes:
+        for p in primes_list:
+            if candidate % p == 0:
+                break
+        else:
+            primes_list.append(candidate)
+        candidate += 1
     return primes_list
 
 
@@ -57,10 +62,7 @@ def convert_leaves(primes_list):
         Converts the leaves (primes_list) to bytes32 format
         returns list of primes where list entries are bytes32 encodings of primes_list entries
     """
-
-    # TODO YOUR CODE HERE
-
-    return []
+    return [p.to_bytes(32, byteorder='big') for p in primes_list]
 
 
 def build_merkle(leaves):
@@ -70,10 +72,15 @@ def build_merkle(leaves):
         tree[1] is the parent hashes, and so on until tree[n] which is the root hash
         the root hash produced by the "hash_pair" helper function
     """
-
-    #TODO YOUR CODE HERE
-    tree = []
-
+    tree = [leaves]
+    while len(tree[-1]) > 1:
+        level = []
+        nodes = tree[-1]
+        for i in range(0, len(nodes), 2):
+            left = nodes[i]
+            right = nodes[i + 1] if i + 1 < len(nodes) else nodes[i]
+            level.append(hash_pair(left, right))
+        tree.append(level)
     return tree
 
 
@@ -85,8 +92,14 @@ def prove_merkle(merkle_tree, random_indx):
         returns a proof of inclusion as list of values
     """
     merkle_proof = []
-    # TODO YOUR CODE HERE
-
+    index = random_indx
+    for level in merkle_tree[:-1]:
+        sibling_index = index ^ 1
+        if sibling_index < len(level):
+            sibling_hash = level[sibling_index]
+            direction = 'L' if sibling_index < index else 'R'
+            merkle_proof.append((sibling_hash, direction))
+        index //= 2
     return merkle_proof
 
 
@@ -103,8 +116,8 @@ def sign_challenge(challenge):
     addr = acct.address
     eth_sk = acct.key
 
-    # TODO YOUR CODE HERE
-    eth_sig_obj = 'placeholder'
+    eth_encoded_msg = eth_account.messages.encode_defunct(text=challenge)
+    eth_sig_obj = eth_account.Account.sign_message(eth_encoded_msg, private_key=eth_sk)
 
     return addr, eth_sig_obj.signature.hex()
 
