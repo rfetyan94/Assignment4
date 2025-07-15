@@ -137,17 +137,20 @@ def send_signed_msg(proof, random_leaf):
     # TODO YOUR CODE HERE
     contract = w3.eth.contract(address=address, abi=abi)
 
-    tx = contract.functions.claimPrime(random_leaf, proof).build_transaction({
+    tx = contract.functions.submit(proof, random_leaf).build_transaction({
         'from': acct.address,
         'nonce': w3.eth.get_transaction_count(acct.address),
         'gas': 500000,
-        'gasPrice': w3.eth.gas_price
+        'gasPrice': w3.to_wei('10', 'gwei')
     })
 
+    # sign the transaction
     signed_tx = w3.eth.account.sign_transaction(tx, private_key=acct.key)
+
+    # send it to the network
     tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
 
-    return w3.to_hex(tx_hash)
+    return tx_hash
 
 # Helper functions that do not need to be modified
 def connect_to(chain):
