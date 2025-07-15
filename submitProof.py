@@ -25,9 +25,7 @@ def merkle_assignment():
     tree = build_merkle(leaves)
 
     # Select a random leaf and create a proof for that leaf
-    # random_leaf_index = 0  # TODO generate a random index from primes to claim (0 is already claimed)
     random_leaf_index = random.randint(1, num_of_primes - 1)
-
     proof = prove_merkle(tree, random_leaf_index)
 
     # This is the same way the grader generates a challenge for sign_challenge()
@@ -48,23 +46,14 @@ def generate_primes(num_primes):
         returns list (with length n) of primes (as ints) in ascending order
     """
     primes_list = []
-
-    # TODO YOUR CODE HERE
-    current = 2
-
-    # keep going until we have enough primes
+    candidate = 2
     while len(primes_list) < num_primes:
-        is_prime = True
         for p in primes_list:
-            if p * p > current:
+            if candidate % p == 0:
                 break
-            if current % p == 0:
-                is_prime = False
-                break
-        if is_prime:
-            primes_list.append(current)
-        current += 1
-
+        else:
+            primes_list.append(candidate)
+        candidate += 1
     return primes_list
 
 
@@ -73,16 +62,7 @@ def convert_leaves(primes_list):
         Converts the leaves (primes_list) to bytes32 format
         returns list of primes where list entries are bytes32 encodings of primes_list entries
     """
-
-    # TODO YOUR CODE HERE
-    leaves = []  # create a new list to hold the encoded primes
-
-    for prime in primes_list:
-        # convert each prime number to 32-byte format using big-endian byte order
-        prime_bytes = int.to_bytes(prime, 32, 'big')
-        leaves.append(prime_bytes)
-
-    return leaves
+    return [p.to_bytes(32, byteorder='big') for p in primes_list]
 
 
 def build_merkle(leaves):
@@ -92,34 +72,15 @@ def build_merkle(leaves):
         tree[1] is the parent hashes, and so on until tree[n] which is the root hash
         the root hash produced by the "hash_pair" helper function
     """
-
-    # TODO YOUR CODE HERE
-    tree = []
-    current_level = leaves
-
-    # keep building parent levels until we have a single root
-    while len(current_level) > 1:
-        tree.append(current_level)
-        next_level = []
-
-        for i in range(0, len(current_level), 2):
-            left = current_level[i]
-
-            # if we have an odd number of elements, duplicate the last one
-            if i + 1 < len(current_level):
-                right = current_level[i + 1]
-            else:
-                right = left
-
-            # hash the sorted pair
-            parent = hash_pair(left, right)
-            next_level.append(parent)
-
-        current_level = next_level
-
-    # add the final root level
-    tree.append(current_level)
-
+    tree = [leaves]
+    while len(tree[-1]) > 1:
+        level = []
+        nodes = tree[-1]
+        for i in range(0, len(nodes), 2):
+            left = nodes[i]
+            right = nodes[i + 1] if i + 1 < len(nodes) else nodes[i]
+            level.append(hash_pair(left, right))
+        tree.append(level)
     return tree
 
 
@@ -131,24 +92,13 @@ def prove_merkle(merkle_tree, random_indx):
         returns a proof of inclusion as list of values
     """
     merkle_proof = []
-    # TODO YOUR CODE HERE
     index = random_indx
-
-    # go level by level up to the root (excluding the root)
     for level in merkle_tree[:-1]:
-        # get the index of the sibling
-        if index % 2 == 0:
-            sibling = index + 1
-        else:
-            sibling = index - 1
-
-        # only add sibling if it's within bounds
-        if sibling < len(level):
-            merkle_proof.append(level[sibling])
-
-        # move to parent index
-        index = index // 2
-
+        sibling_index = index ^ 1
+        if sibling_index < len(level):
+            sibling_hash = level[sibling_index]
+            merkle_proof.append(sibling_hash)
+        index //= 2
     return merkle_proof
 
 
@@ -165,13 +115,8 @@ def sign_challenge(challenge):
     addr = acct.address
     eth_sk = acct.key
 
-    # TODO YOUR CODE HERE
-    # eth_sig_obj = 'placeholder'
-
-    # encode the challenge message in Ethereum's expected format
     encoded_msg = eth_account.messages.encode_defunct(text=challenge)
 
-    # sign the message using our private key
     eth_sig_obj = eth_account.Account.sign_message(encoded_msg, eth_sk)
 
     return addr, eth_sig_obj.signature.hex()
@@ -190,27 +135,19 @@ def send_signed_msg(proof, random_leaf):
     w3 = connect_to(chain)
 
     # TODO YOUR CODE HERE
-    # tx_hash = 'placeholder'
-
-    # load the contract
     contract = w3.eth.contract(address=address, abi=abi)
 
-    # build the transaction to call 'submit'
-    tx = contract.functions.submit(proof, random_leaf).build_transaction({
+    tx = contract.functions.claimPrime(random_leaf, proof).build_transaction({
         'from': acct.address,
         'nonce': w3.eth.get_transaction_count(acct.address),
         'gas': 500000,
-        'gasPrice': w3.to_wei('10', 'gwei')
+        'gasPrice': w3.eth.gas_price
     })
 
-    # sign the transaction
     signed_tx = w3.eth.account.sign_transaction(tx, private_key=acct.key)
-
-    # send it to the network
     tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
 
-    return tx_hash
-
+    return w3.to_hex(tx_hash)
 
 # Helper functions that do not need to be modified
 def connect_to(chain):
@@ -218,7 +155,7 @@ def connect_to(chain):
         Takes a chain ('avax' or 'bsc') and returns a web3 instance
         connected to that chain.
     """
-    if chain not in ['avax', 'bsc']:
+    if chain not in ['avax','bsc']:
         print(f"{chain} is not a valid option for 'connect_to()'")
         return None
     if chain == 'avax':
