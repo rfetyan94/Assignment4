@@ -135,9 +135,19 @@ def send_signed_msg(proof, random_leaf):
     w3 = connect_to(chain)
 
     # TODO YOUR CODE HERE
-    tx_hash = 'placeholder'
+    contract = w3.eth.contract(address=address, abi=abi)
 
-    return tx_hash
+    tx = contract.functions.claimPrime(random_leaf, proof).build_transaction({
+        'from': acct.address,
+        'nonce': w3.eth.get_transaction_count(acct.address),
+        'gas': 500000,
+        'gasPrice': w3.eth.gas_price
+    })
+
+    signed_tx = w3.eth.account.sign_transaction(tx, private_key=acct.key)
+    tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+
+    return w3.to_hex(tx_hash)
 
 # Helper functions that do not need to be modified
 def connect_to(chain):
