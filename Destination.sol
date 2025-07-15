@@ -1,39 +1,84 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "./BridgeToken.sol";
-
-contract Destination is AccessControl {
-    bytes32 public constant WARDEN_ROLE = keccak256("BRIDGE_WARDEN_ROLE");
-    bytes32 public constant CREATOR_ROLE = keccak256("CREATOR_ROLE");
-	mapping( address => address) public underlying_tokens;
-	mapping( address => address) public wrapped_tokens;
-	address[] public tokens;
-
-	event Creation( address indexed underlying_token, address indexed wrapped_token );
-	event Wrap( address indexed underlying_token, address indexed wrapped_token, address indexed to, uint256 amount );
-	event Unwrap( address indexed underlying_token, address indexed wrapped_token, address frm, address indexed to, uint256 amount );
-
-    constructor( address admin ) {
-        _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _grantRole(CREATOR_ROLE, admin);
-        _grantRole(WARDEN_ROLE, admin);
-    }
-
-	function wrap(address _underlying_token, address _recipient, uint256 _amount ) public onlyRole(WARDEN_ROLE) {
-		//YOUR CODE HERE
-	}
-
-	function unwrap(address _wrapped_token, address _recipient, uint256 _amount ) public {
-		//YOUR CODE HERE
-	}
-
-	function createToken(address _underlying_token, string memory name, string memory symbol ) public onlyRole(CREATOR_ROLE) returns(address) {
-		//YOUR CODE HERE
-	}
-
+interface ISourceBridge {
+function owner() external view returns (address);
 }
 
+contract DestinationContract {
+address public admin;
+address public sourceBridgeAddress;
 
+```
+uint256 public nextTokenId = 0;
+
+// Inventory pool of available tokens
+uint256[] public availableTokens;
+
+// Mapping of tokenId => owner (if wrapped)
+mapping(uint256 => address) public wrappedTokens;
+
+event TokenCreated(uint256 tokenId);
+event TokenWrapped(uint256 tokenId, address recipient);
+event TokenUnwrapped(uint256 tokenId, address owner);
+
+constructor(address _sourceBridgeAddress) {
+    admin = msg.sender;
+    sourceBridgeAddress = _sourceBridgeAddress;
+}
+
+modifier onlyAdmin() {
+    require(msg.sender == admin, "Not admin");
+    _;
+}
+
+modifier onlySourceBridgeOwner() {
+    require(
+        msg.sender == ISourceBridge(sourceBridgeAddress).owner(),
+        "Unauthorized: Not source bridge owner"
+    );
+    _;
+}
+
+// --- 1. Create Tokens ---
+function createTokens(uint256 amount) public onlyAdmin {
+    for (uint256 i = 0; i < amount; i++) {
+        availableTokens.push(nextTokenId);
+        emit TokenCreated(nextTokenId);
+        nextTokenId++;
+    }
+}
+
+// --- 2. Wrap Tokens ---
+function wrapToken(address recipient) public onlySourceBridgeOwner {
+    require(availableTokens.length > 0, "No tokens available");
+    uint256 tokenId = availableTokens[availableTokens.length - 1];
+    availableTokens.pop();
+
+    wrappedTokens[tokenId] = recipient;
+
+    emit TokenWrapped(tokenId, recipient);
+}
+
+// --- 3. Unwrap Tokens ---
+function unwrapToken(uint256 tokenId) public {
+    require(wrappedTokens[tokenId] == msg.sender, "Not token owner");
+
+    delete wrappedTokens[tokenId];
+    availableTokens.push(tokenId);
+
+    emit TokenUnwrapped(tokenId, msg.sender);
+}
+
+// --- Admin: Update bridge address ---
+function updateSourceBridge(address _newSourceBridgeAddress) public onlyAdmin {
+    sourceBridgeAddress = _newSourceBridgeAddress;
+}
+
+// --- Helper ---
+function getAvailableTokenCount() public view returns (uint256) {
+    return availableTokens.length;
+}
+```
+
+}
